@@ -50,7 +50,10 @@ class PatternCircle {
     this.y = y;
     this.r = r;
     this.angleDots = random(TWO_PI); // start rotation from a random angle
-    this.dotSizes = [];              
+    this.dotSizes = [];
+    this.trailLength = 30;
+    this.dotProgress = 0;
+    this.dotSpeed = 0.01;              
     this.generateColors();           // pick random colors
   }
 
@@ -72,6 +75,7 @@ class PatternCircle {
   // Slowly rotate the red dots
   update() {
     this.angleDots += 0.005;
+    this.dotProgress = (this.dotProgress + this.dotSpeed) % TWO_PI;
   }
 
   // Draw everything in this circle
@@ -161,16 +165,22 @@ class PatternCircle {
   drawOuterDots(x, y, r) {
     let maxRadius = r * 0.6;
     let ringIndex = 0;
+
     for (let i = 10; i < maxRadius; i += 12) {
       let numDots = floor(TWO_PI * i / 10); // how many dots on this ring
       let dotSize = this.dotSizes[ringIndex];
+      let activeDot = floor(this.dotProgress*numDots/TWO_PI);
+
       for (let j = 0; j < numDots; j++) {
+        let distFromActive = (j - activeDot + numDots)%numDots
+        if(distFromActive < this.trailLength){
         let angle = TWO_PI * j / numDots;
         let dx = x + cos(angle) * i;
         let dy = y + sin(angle) * i;
         fill(this.outerDotColor);
         noStroke();
         ellipse(dx, dy, dotSize); // draw each dot
+        }
       }
       ringIndex++;
     }
