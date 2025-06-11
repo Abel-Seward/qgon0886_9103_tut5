@@ -52,9 +52,9 @@ class PatternCircle {
     this.r = r;
     this.angleDots = random(TWO_PI); // start rotation from a random angle
     this.dotSizes = [];
-    this.trailLength = 75;
+    this.trailLength = 30;
     this.dotProgress = 0;
-    this.dotSpeed = 0.08;              
+    this.dotSpeed = 0.09;              
     this.generateColors();           // pick random colors
     this.dotsTrail = []; //Array of historical positional transparency for each point of each ring
     let maxRadius = this.r * 0.6;
@@ -217,7 +217,7 @@ class PatternCircle {
         let dx = x + cos(angle) * i;
         let dy = y + sin(angle) * i;
 
-        let alpha = map(t, 0, this.trailLength, 255, 50);
+        let alpha = map(t, 0, this.trailLength, 255, 0);
         fill(this.outerDotColor, alpha);
         noStroke();
         ellipse(dx, dy, dotSize); // draw each dot     
