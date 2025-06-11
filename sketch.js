@@ -6,6 +6,7 @@ let dotSizes = [];     // stores the size of each ring of dots
 let circles = [];      // an array to store all circle objects
 
 function setup() {
+  background(2,78,107);
   // Create the canvas using the size of the window
   createCanvas(windowWidth, windowHeight);
   angleMode(RADIANS); // use radians for angle measurements
@@ -29,7 +30,7 @@ function setup() {
 }
 
 function draw() {
-  background('#024E6B'); // dark background
+  background(2, 78, 107,80);
   for (let c of circles) {
     c.update(); // update animations
     c.draw();   // draw each circle
@@ -51,10 +52,21 @@ class PatternCircle {
     this.r = r;
     this.angleDots = random(TWO_PI); // start rotation from a random angle
     this.dotSizes = [];
-    this.trailLength = 30;
+    this.trailLength = 75;
     this.dotProgress = 0;
-    this.dotSpeed = 0.01;              
+    this.dotSpeed = 0.08;              
     this.generateColors();           // pick random colors
+    this.dotsTrail = []; //Array of historical positional transparency for each point of each ring
+    let maxRadius = this.r * 0.6;
+    let ringIndex = 0;
+    for (let i = 10; i < maxRadius; i += 12) {
+      let numDots = floor(TWO_PI * i / 10);
+      this.dotsTrail[ringIndex] = [];
+      for (let j = 0; j < numDots; j++) {
+        this.dotsTrail[ringIndex][j] = [];
+      }
+      ringIndex++;
+    }
   }
 
   // Pick random colors for this circle
@@ -76,23 +88,36 @@ class PatternCircle {
   update() {
     this.angleDots += 0.005;
     this.dotProgress = (this.dotProgress + this.dotSpeed) % TWO_PI;
+  
+    let maxRadius = this.r * 0.6;
+    let ringIndex = 0;
+    for (let i = 10; i < maxRadius; i += 12) {
+      let numDots = floor(TWO_PI * i / 10);
+      let dotIndex = floor((this.dotProgress * numDots) / TWO_PI);
+      let angle = TWO_PI * dotIndex / numDots + this.angleDots;
+      let dx = cos(angle) * i;
+      let dy = sin(angle) * i;
+      // access the trail array for the first dot on this ring
+      let trail = this.dotsTrail[ringIndex][0]; 
+      trail.push(createVector(dx, dy));
+      if (trail.length > this.trailLength) trail.shift();// remove oldest position if trail is longer than allowed length
+  
+      ringIndex++;
+    }
   }
 
   // Draw everything in this circle
   draw() {
     push();
-    translate(this.x, this.y); // move to the circle’s center
+    translate(this.x, this.y); // move to the circle's center
 
     // Draw white background circle
     fill(this.baseCircleColor);
     noStroke();
     circle(0, 0, this.r * 1.3);
 
-    // Draw rotating red dots
-    push();
-    rotate(this.angleDots); 
-    this.drawOuterDots(0, 0, this.r);
-    pop();
+    //draw dots with new function
+    this.drawOuterDotsWithTrail();
 
     // Draw the pink background circle
     fill(this.bgColor);
@@ -125,7 +150,7 @@ class PatternCircle {
     circle(0, 0, this.r * 0.2);
 
     noFill();
-    stroke(80, 255, 120, 60);
+    stroke(80, 255, 120);
     strokeWeight(2.5);
     fill(180, 50, 80);
     circle(0, 0, this.r * 0.15);
@@ -161,7 +186,22 @@ class PatternCircle {
     pop(); // end main drawing
   }
 
-  // Draw red dots in rings around the center
+  drawOuterDotsWithTrail() {
+    noStroke();
+  
+    for (let ringIndex = 0; ringIndex < this.dotsTrail.length; ringIndex++) {
+      let dotSize = this.dotSizes[ringIndex];// get the size of the dots for this ring
+      let trail = this.dotsTrail[ringIndex][0];// access the trail history for the first dot in this ring
+      // iterate through the saved trail positions to draw the tail effect
+      for (let k = 0; k < trail.length; k++) {
+        let pos = trail[k];
+        let alpha = map(k, 0, trail.length - 1, 50, 255);// calculate transparency
+        fill(red(this.outerDotColor), green(this.outerDotColor), blue(this.outerDotColor), alpha);
+        ellipse(pos.x, pos.y, dotSize);
+      }
+    }
+  }
+  
   drawOuterDots(x, y, r) {
     let maxRadius = r * 0.6;
     let ringIndex = 0;
@@ -171,16 +211,16 @@ class PatternCircle {
       let dotSize = this.dotSizes[ringIndex];
       let activeDot = floor(this.dotProgress*numDots/TWO_PI);
 
-      for (let j = 0; j < numDots; j++) {
-        let distFromActive = (j - activeDot + numDots)%numDots
-        if(distFromActive < this.trailLength){
-        let angle = TWO_PI * j / numDots;
+      for (let t = 0; t < this.trailLength; t++) {
+        let index = (activeDot - t + numDots)%numDots
+        let angle = TWO_PI * index / numDots;
         let dx = x + cos(angle) * i;
         let dy = y + sin(angle) * i;
-        fill(this.outerDotColor);
+
+        let alpha = map(t, 0, this.trailLength, 255, 50);
+        fill(this.outerDotColor, alpha);
         noStroke();
-        ellipse(dx, dy, dotSize); // draw each dot
-        }
+        ellipse(dx, dy, dotSize); // draw each dot     
       }
       ringIndex++;
     }
