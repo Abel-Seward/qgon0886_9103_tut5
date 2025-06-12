@@ -4,6 +4,12 @@ let outerDotColor;     // color for the red dots outside
 let angleDots = 0;     // controls how much the red dots rotate
 let dotSizes = [];     // stores the size of each ring of dots
 let circles = [];      // an array to store all circle objects
+let startTime;         //record the start time of the animation
+let maxTrail = 60;      // the longest length of trail
+let minTrail = 15;      // the shortest length of trail
+let maxSpeed = 0.12;    // maximum speed of rotation
+let minSpeed = 0.005;   // minimum speef of rotation
+let colorChanged = false;//whelther the color has been changed
 
 function setup() {
   background(2,78,107);
@@ -27,13 +33,48 @@ function setup() {
     let y = centerY + sin(angle) * spacing;
     circles.push(new PatternCircle(x, y, radius));
   }
+  startTime = millis();//record the start time of the animation
 }
 
 function draw() {
-  background(2, 78, 107,80);
+  background(2, 78, 107,80);// transparent background for trailing effect
+
+   // 40s total duration, 4 phases of 10s each
+  let t = (millis() - startTime) % 40000;
+  let phaseProgress = (t % 10000)/10000;
+  let trailFactor, speedFactor;
+ // Rhythm phase control
+  if (t < 10000) {
+    //  slow rotation (0–10s)
+    trailFactor = lerp(minTrail, minTrail + 5, phaseProgress);
+    speedFactor = lerp(minSpeed, minSpeed + 0.002, phaseProgress);
+    colorChanged = false;
+  } else if (t < 20000) {
+    // acceleration (10–20s)
+    trailFactor = lerp(minTrail + 5, maxTrail, phaseProgress);
+    speedFactor = lerp(minSpeed + 0.002, maxSpeed, phaseProgress);
+  } else if (t < 30000) {
+    // constant high speed (20–30s)
+    trailFactor = maxTrail;
+    speedFactor = maxSpeed;
+
+    //  change colors only once at start of this phase
+    if (!colorChanged) {
+      for (let c of circles) c.generateColors();
+      colorChanged = true;
+    }
+  } else {
+    //deceleration (30–40s)
+    trailFactor = lerp(maxTrail, minTrail, phaseProgress);
+    speedFactor = lerp(maxSpeed, minSpeed, phaseProgress);
+  }
+
+  // update and draw all circular pattern objects
   for (let c of circles) {
-    c.update(); // update animations
-    c.draw();   // draw each circle
+    c.trailLength = trailFactor;
+    c.dotSpeed = speedFactor;
+    c.update(speedFactor); 
+    c.draw();
   }
 }
 
@@ -51,12 +92,14 @@ class PatternCircle {
     this.y = y;
     this.r = r;
     this.angleDots = random(TWO_PI); // start rotation from a random angle
-    this.dotSizes = [];
-    this.trailLength = 30;
-    this.dotProgress = 0;
-    this.dotSpeed = 0.09;              
-    this.generateColors();           // pick random colors
+    this.dotSizes = [];//red dots sizes
+    this.trailLength = 30;//current trail length
+    this.dotProgress = 0;//dot animation progress
+    this.dotSpeed = 0.09;//dot rotation speed              
+    this.generateColors(); // pick random colors
     this.dotsTrail = []; //Array of historical positional transparency for each point of each ring
+    this.pointerAngle = 0;
+    // initialize red dot trails for each ring
     let maxRadius = this.r * 0.6;
     let ringIndex = 0;
     for (let i = 10; i < maxRadius; i += 12) {
@@ -85,9 +128,10 @@ class PatternCircle {
   }
 
   // Slowly rotate the red dots
-  update() {
-    this.angleDots += 0.005;
+  update(speedFactor) {
+    this.angleDots +=speedFactor;
     this.dotProgress = (this.dotProgress + this.dotSpeed) % TWO_PI;
+    this.pointerAngle += speedFactor;
   
     let maxRadius = this.r * 0.6;
     let ringIndex = 0;
@@ -169,9 +213,8 @@ class PatternCircle {
     arc(0, 0, 20, 25, PI * 0.45, PI * 0.75);
 
     // Draw two animated bezier curves.
-    let rotateAngle = frameCount * 0.02;
     push();
-    rotate(rotateAngle);
+    rotate(this.pointerAngle);
 
     stroke(255, 0, 100);
     strokeWeight(5);
@@ -186,6 +229,7 @@ class PatternCircle {
     pop(); // end main drawing
   }
 
+  //draw dots with trailing effect
   drawOuterDotsWithTrail() {
     noStroke();
   
@@ -199,30 +243,6 @@ class PatternCircle {
         fill(red(this.outerDotColor), green(this.outerDotColor), blue(this.outerDotColor), alpha);
         ellipse(pos.x, pos.y, dotSize);
       }
-    }
-  }
-  
-  drawOuterDots(x, y, r) {
-    let maxRadius = r * 0.6;
-    let ringIndex = 0;
-
-    for (let i = 10; i < maxRadius; i += 12) {
-      let numDots = floor(TWO_PI * i / 10); // how many dots on this ring
-      let dotSize = this.dotSizes[ringIndex];
-      let activeDot = floor(this.dotProgress*numDots/TWO_PI);
-
-      for (let t = 0; t < this.trailLength; t++) {
-        let index = (activeDot - t + numDots)%numDots
-        let angle = TWO_PI * index / numDots;
-        let dx = x + cos(angle) * i;
-        let dy = y + sin(angle) * i;
-
-        let alpha = map(t, 0, this.trailLength, 255, 0);
-        fill(this.outerDotColor, alpha);
-        noStroke();
-        ellipse(dx, dy, dotSize); // draw each dot     
-      }
-      ringIndex++;
     }
   }
 }
